@@ -48,7 +48,7 @@ export default function LogIn() {
         <FormButton text="Login" />
 
         {state.success && (
-          <div className="bg-green-600 flex p-2.5 border-none rounded-xl">
+          <div className="bg-blue-500 flex p-2.5 border-none rounded-xl">
             <div className="px-3 py-1.5">
               {<CheckBadgeIcon className="w-5 h-5" />}{" "}
             </div>
