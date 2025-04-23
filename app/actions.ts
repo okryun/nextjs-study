@@ -1,17 +1,44 @@
 "use server";
+import { z } from "zod";
 
-export async function handleForm(prevState: any, formData: FormData) {
-  await new Promise((resolve) => setTimeout(resolve, 2000)); //2초 대기
+const passwordRegex = new RegExp(/^(?=.*?[0-9]).+$/);
 
-  const password = formData.get("password");
-  console.log(password);
+const formSchema = z.object({
+  username: z.string().min(5),
+  email: z
+    .string()
+    .email()
+    .refine(
+      (email) => (email.includes("@zod.com") ? true : false),
+      "only @zod.com emails are allowed"
+    ),
+  password: z
+    .string()
+    .min(10)
+    .regex(
+      passwordRegex,
+      "Password should contain at least one number (01234567890)"
+    ),
+});
 
-  if (password !== "12345") {
-    console.log("no");
+export async function Login(prevState: any, formData: FormData) {
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  const data = {
+    email: formData.get("email"),
+    username: formData.get("username"),
+    password: formData.get("password"),
+  };
+
+  const result = formSchema.safeParse(data);
+  if (!result.success) {
     return {
-      errors: ["wrong password!!!!!!!!!!"],
+      success: false,
+      fieldErrors: result.error.flatten().fieldErrors,
     };
-  } else {
-    return { errors: [], success: true };
   }
+
+  return {
+    success: true,
+    fieldErrors: {},
+  };
 }
