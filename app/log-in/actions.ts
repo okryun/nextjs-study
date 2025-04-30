@@ -1,44 +1,75 @@
 "use server";
-import { z } from "zod";
 
-const passwordRegex = new RegExp(/^(?=.*?[0-9]).+$/);
+import bcrypt from "bcrypt";
+import { redirect } from "next/navigation";
+import { typeToFlattenedError, z } from "zod";
+import { isEmailExist } from "../../service/userService";
+import db from "../../utils/db";
+import { getSession } from "../../utils/session";
 
-const formSchema = z.object({
-  username: z.string().min(5),
+const logInSchema = z.object({
   email: z
-    .string()
-    .email()
-    .refine(
-      (email) => (email.includes("@zod.com") ? true : false),
-      "only @zod.com emails are allowed"
-    ),
+    .string({
+      required_error: "Email is required.",
+    })
+    .trim()
+    .email("Please enter a valid email address.")
+    .refine(isEmailExist, "An account with this email does not exist."),
   password: z
-    .string()
-    .min(10)
-    .regex(
-      passwordRegex,
-      "Password should contain at least one number (01234567890)"
-    ),
+    .string({
+      required_error: "Password is required.",
+    })
+    .trim(),
 });
 
-export async function Login(prevState: any, formData: FormData) {
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+interface FormState {
+  isSuccess: boolean;
+  error: typeToFlattenedError<
+    { email: string; username: string; password: string },
+    string
+  > | null;
+}
+
+export async function handleForm(
+  _: unknown,
+  formData: FormData
+): Promise<FormState> {
   const data = {
     email: formData.get("email"),
-    username: formData.get("username"),
     password: formData.get("password"),
   };
-
-  const result = formSchema.safeParse(data);
+  const result = await logInSchema.spa(data);
   if (!result.success) {
     return {
-      success: false,
-      fieldErrors: result.error.flatten().fieldErrors,
+      error: result.error?.flatten(),
+      isSuccess: false,
     };
   }
 
-  return {
-    success: true,
-    fieldErrors: {},
-  };
+  const user = await db.user.findUnique({
+    where: {
+      email: result.data.email,
+    },
+    select: {
+      id: true,
+      password: true,
+    },
+  });
+  if (!user || !(await bcrypt.compare(result.data.password, user.password))) {
+    return {
+      error: {
+        formErrors: [],
+        fieldErrors: {
+          password: ["Wrong password."],
+          email: [],
+        },
+      },
+      isSuccess: false,
+    };
+  }
+
+  const session = await getSession();
+  session.id = user.id;
+  await session.save();
+  redirect("/");
 }
