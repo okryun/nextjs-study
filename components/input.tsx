@@ -1,33 +1,52 @@
+"use client";
+
 import { InputHTMLAttributes, ReactNode } from "react";
+import { useFormStatus } from "react-dom";
 
-interface InputForm {
-  name: string;
-  errors?: string[];
-  icon: ReactNode;
-}
-
-export default function FormInput({
-  errors = [],
+const Input = ({
   name,
-  icon,
+  placeholder,
+  errors,
+  labelIcon,
   ...rest
-}: InputForm & InputHTMLAttributes<HTMLInputElement>) {
-  console.log(rest);
+}: {
+  name: string;
+  placeholder: string;
+  errors?: string[];
+  labelIcon?: ReactNode;
+} & InputHTMLAttributes<HTMLInputElement>) => {
+  const { pending } = useFormStatus();
+
   return (
-    <div className="flex flex-col items-center mb-4">
-      <div className="flex items-center w-[520px] px-3.5 py-2 rounded-4xl ring-1 ring-neutral-200 focus-within:ring-2 transition">
-        {icon && <div className="mr-3 text-gray-500">{icon}</div>}
+    <div className="flex flex-col gap-1">
+      <div className="relative flex">
+        <label
+          htmlFor={name}
+          className="absolute top-1/2 left-4 -translate-y-1/2 text-stone-600 *:size-5"
+        >
+          {labelIcon}
+        </label>
         <input
-          className="flex-1 h-10 bg-transparent outline-none placeholder:text-neutral-400 text-neutral-800"
+          id={name}
+          className={`w-full h-12 pl-11 rounded-3xl bg-transparent text-stone-600 border placeholder:text-stone-400 focus:outline-none focus:ring focus:ring-offset-2 transition ${
+            errors
+              ? "border-red-500 focus:ring-red-400"
+              : "border-stone-400 focus:ring-stone-300"
+          }`}
           name={name}
+          placeholder={placeholder}
+          disabled={pending}
           {...rest}
         />
       </div>
-      {errors?.map((error, index) => (
-        <span key={index} className="text-red-400 font-medium">
-          {error}
-        </span>
-      ))}
+      <div>
+        {errors?.map((error) => (
+          <p key={error} className="pt-2 pl-1 text-red-400">
+            {error}
+          </p>
+        ))}
+      </div>
     </div>
   );
-}
+};
+export default Input;

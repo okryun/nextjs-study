@@ -1,59 +1,64 @@
 "use client";
 
-import Button from "@/components/button";
-import Input from "@/components/input";
-import SocialLogin from "@/components/social-login";
+import { useFormState } from "react-dom";
+import {
+  FireIcon,
+  EnvelopeIcon,
+  UserIcon,
+  KeyIcon,
+} from "@heroicons/react/24/solid";
 
-import { createAccount } from "./actions";
-import { useActionState } from "react";
+import { handleForm } from "./actions";
 
-export default function CreateAccount() {
-  const [state, dispatch] = useActionState(createAccount, null);
+import Link from "next/link";
+import Input from "../../components/input";
+import Button from "../../components/button";
+import SuccessMessage from "../../components/success-message";
+
+export default function Home() {
+  const [state, action] = useFormState(handleForm, null);
 
   return (
-    <div className="flex flex-col gap-10 py-8 px-6">
-      <div className="flex flex-col gap-2 *:font-medium">
-        <h1 className="text-2xl">안녕하세요!</h1>
-        <h2 className="text-xl">Fill in the form below to join!</h2>
-      </div>
-      <form action={dispatch} className="flex flex-col gap-3">
-        <Input
-          name="username"
-          type="text"
-          placeholder="Username"
-          required
-          icon
-          errors={state?.fieldErrors.username}
-        />
+    <main className="flex flex-col gap-10 items-center justify-center">
+      <h1 className="text-center text-6xl">
+        <FireIcon className="size-20 text-red-400" />
+      </h1>
+      <form action={action} className="w-full flex flex-col gap-5">
         <Input
           name="email"
           type="email"
           placeholder="Email"
-          required
-          icon
-          errors={state?.fieldErrors.email}
+          required={true}
+          errors={state?.error?.fieldErrors.email}
+          labelIcon={<EnvelopeIcon />}
+        />
+        <Input
+          name="username"
+          placeholder="Username"
+          required={true}
+          errors={state?.error?.fieldErrors.username}
+          labelIcon={<UserIcon />}
         />
         <Input
           name="password"
           type="password"
           placeholder="Password"
-          minLength={4}
-          required
-          icon
-          errors={state?.fieldErrors.password}
+          required={true}
+          errors={state?.error?.fieldErrors.password}
+          labelIcon={<KeyIcon />}
         />
-        <Input
-          name="confirm_password"
-          type="password"
-          placeholder="Confirm Password"
-          required
-          minLength={4}
-          icon
-          errors={state?.fieldErrors.confirm_password}
-        />
-        <Button text="Create account" />
+        <Button text="Create Account" />
+        {state?.isSuccess && <SuccessMessage />}
       </form>
-      <SocialLogin />
-    </div>
+      <div className="flex gap-2">
+        <span>이미 계정이 있나요?</span>
+        <Link
+          href="/log-in"
+          className="text-stone-600 hover:underline hover:text-stone-400"
+        >
+          Log in
+        </Link>
+      </div>
+    </main>
   );
 }

@@ -1,93 +1,102 @@
 "use server";
-import {
-  PASSWORD_MIN_LENGTH,
-  PASSWORD_REGEX,
-  PASSWORD_REGEX_ERROR,
-} from "@/lib/constants";
-import db from "@/lib/db";
-import { z } from "zod";
 
-const checkUsername = (username: string) => !username.includes("potato");
+import { redirect } from "next/navigation";
+import { z, typeToFlattenedError } from "zod";
+import * as bcrypt from "bcrypt";
+import { isEmailExist, isUsernameExist } from "../../service/userService";
+import db from "../../utils/db";
+import { getSession } from "../../utils/session";
 
-const checkPasswords = ({
-  password,
-  confirm_password,
-}: {
-  password: string;
-  confirm_password: string;
-}) => password === confirm_password;
+const USERNAME_MIN_LENGTH = 5;
+const PASSWORD_MIN_LENGTH = 10;
+const PASSWORD_REGEX = /^(?=.*\d).{10,}$/;
 
-const checkUniqueUsername = async (username: string) => {
-  const user = await db.user.findUnique({
-    where: {
-      username,
-    },
-    select: {
-      id: true,
-    },
-  });
-  // if (user) {
-  //   return false;
-  // } else {
-  //   return true;
-  // }
-  return !Boolean(user);
-};
-
-const checkUniqueEmail = async (email: string) => {
-  const user = await db.user.findUnique({
-    where: {
-      email,
-    },
-    select: {
-      id: true,
-    },
-  });
-  return Boolean(user) === false;
-};
-const formSchema = z
+const createAccountSchema = z
   .object({
-    username: z
-      .string({
-        invalid_type_error: "Username must be a string!",
-        required_error: "Where is my username???",
-      })
-      .toLowerCase()
-      .trim()
-      // .transform((username) => `🔥 ${username} 🔥`)
-      .refine(checkUsername, "No potatoes allowed!")
-      .refine(checkUniqueUsername, "This username is already taken"),
     email: z
-      .string()
-      .email()
-      .toLowerCase()
+      .string({ required_error: "Email is required." })
+      .trim()
+      .email("Please enter a valid email address.")
       .refine(
-        checkUniqueEmail,
-        "There is an account already registered with that email."
+        (email) => email.includes("@zod.com"),
+        "Only @zod.com emails allowed."
       ),
-    password: z.string().min(PASSWORD_MIN_LENGTH),
-    //.regex(PASSWORD_REGEX, PASSWORD_REGEX_ERROR),
-    confirm_password: z.string().min(PASSWORD_MIN_LENGTH),
+    username: z
+      .string({ required_error: "Username is required." })
+      .trim()
+      .min(
+        USERNAME_MIN_LENGTH,
+        `Username must be at least ${USERNAME_MIN_LENGTH} characters.`
+      ),
+    password: z
+      .string({ required_error: "Password is required." })
+      .trim()
+      .min(
+        PASSWORD_MIN_LENGTH,
+        `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`
+      )
+      .regex(PASSWORD_REGEX, "Password must include at least one number."),
   })
-  .refine(checkPasswords, {
-    message: "Both passwords should be the same!",
-    path: ["confirm_password"],
+  .superRefine(async ({ username }, ctx) => {
+    if (await isUsernameExist(username)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "This username is already taken",
+        path: ["username"],
+        fatal: true,
+      });
+    }
+  })
+  .superRefine(async ({ email }, ctx) => {
+    if (await isEmailExist(email)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "This email is already taken",
+        path: ["email"],
+        fatal: true,
+      });
+    }
   });
 
-export async function createAccount(prevState: any, formData: FormData) {
+type FormValues = z.infer<typeof createAccountSchema>;
+
+interface FormState {
+  isSuccess: boolean;
+  error: typeToFlattenedError<FormValues, string> | null;
+}
+
+export async function handleForm(
+  _: unknown,
+  formData: FormData
+): Promise<FormState> {
   const data = {
-    username: formData.get("username"),
     email: formData.get("email"),
+    username: formData.get("username"),
     password: formData.get("password"),
-    confirm_password: formData.get("confirm_password"),
   };
-  const result = await formSchema.safeParseAsync(data);
+
+  const result = await createAccountSchema.safeParseAsync(data);
   if (!result.success) {
-    return result.error.flatten();
-  } else {
-    // hash password
-    // save the user to db
-    // log the user in
-    // redirect "/home"
+    return {
+      error: result.error.flatten(),
+      isSuccess: false,
+    };
   }
+
+  const hashedPassword = await bcrypt.hash(result.data.password, 12);
+
+  const user = await db.user.create({
+    data: {
+      email: result.data.email,
+      username: result.data.username,
+      password: hashedPassword,
+    },
+    select: { id: true },
+  });
+
+  const session = await getSession();
+  session.id = user.id;
+  await session.save();
+
+  redirect("/");
 }

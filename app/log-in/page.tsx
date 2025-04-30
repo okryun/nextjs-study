@@ -2,17 +2,12 @@
 
 import React from "react";
 
-import Input from "@/components/input";
-import FormButton from "@/components/form-btn";
-import {
-  EnvelopeIcon,
-  UserIcon,
-  KeyIcon,
-  CheckBadgeIcon,
-} from "@heroicons/react/16/solid";
+import { CheckBadgeIcon } from "@heroicons/react/16/solid";
 import { useActionState } from "react";
 import { Login } from "./actions";
-import "@/lib//db";
+
+import Input from "../../components/input";
+import FormButton from "../../components/form-btn";
 
 export default function LogIn() {
   const [state, dispatch] = useActionState(Login, null);
@@ -27,7 +22,6 @@ export default function LogIn() {
           placeholder="Email"
           required
           errors={state?.fieldErrors.email}
-          icon={<EnvelopeIcon className="w-5 h-5" />}
         />
         <Input
           name="username"
@@ -36,7 +30,6 @@ export default function LogIn() {
           required
           errors={state?.fieldErrors.username}
           minLength={3}
-          icon={<UserIcon className="w-5 h-5" />}
         />
         <Input
           name="password"
@@ -45,7 +38,6 @@ export default function LogIn() {
           required
           errors={state?.fieldErrors.password}
           minLength={10}
-          icon={<KeyIcon className="w-5 h-5" />}
         />
         <FormButton text="Login" />
 
